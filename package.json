@@ -1,5 +1,6 @@
 {
   "name": "@tscircuit/rectdiff",
+  "license": "MIT",
   "version": "0.0.52",
   "repository": {
     "type": "git",
