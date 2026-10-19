@@ -228,6 +228,64 @@ test("indexed edge candidates exactly match exhaustive analysis", () => {
       ],
     },
     {
+      name: "overlapping containing boxes rank by nearest edge rather than box distance",
+      bounds: rect(0, 0, 100, 100),
+      minSize: 0.5,
+      layerCount: 3,
+      layers: [
+        {
+          obstacles: [
+            rect(-5, -5, 110, 110),
+            rect(10, 10, 40, 40),
+            rect(20, 20, 5, 5),
+            rect(18, 18, 15, 15),
+          ],
+          hard: [rect(19, 19, 7, 7), rect(20, 20, 5, 5)],
+        },
+        { hard: [rect(45, 45, 20, 20), rect(40, 40, 40, 40)] },
+        {},
+      ],
+    },
+    {
+      name: "raw edge distances retain subprecision offsets and duplicate seeds",
+      bounds: rect(-2, -2, 16, 14),
+      minSize: 0.000001,
+      layerCount: 2,
+      layers: [
+        {
+          obstacles: [
+            rect(2.00000049, 2.00000049, 4.00000049, 3.00000049),
+            rect(2.00000051, 2.00000051, 3.99999951, 2.99999951),
+            rect(6.00000049, 3.00000051, 0.00000049, 0.00000051),
+            rect(6.00000049, 3.00000051, 0.00000049, 0.00000051),
+          ],
+          hard: [
+            rect(1.00000049, 1.00000051, 8.00000049, 7.99999951),
+            rect(2.00000049, 2.00000049, 4.00000049, 3.00000049),
+          ],
+        },
+        {},
+      ],
+    },
+    {
+      name: "large translated coordinates preserve raw ranking distances",
+      bounds: rect(1e12, -1e12, 8000, 6000),
+      minSize: 0.5,
+      layerCount: 2,
+      layers: [
+        {
+          obstacles: [
+            rect(1e12 - 1, -1e12 - 1, 8002, 6002),
+            rect(1e12 + 100.00049, -1e12 + 200.00051, 2000.00049, 3000.00051),
+            rect(1e12 + 150.00051, -1e12 + 250.00049, 100.00051, 200.00049),
+            rect(1e12 + 150.00051, -1e12 + 250.00049, 100.00051, 200.00049),
+          ],
+          hard: [rect(1e12 + 4000.00049, -1e12 + 3000.00051, 0, 1200.00049)],
+        },
+        {},
+      ],
+    },
+    {
       name: "EPS inset dominates a subprecision minimum size",
       bounds: rect(-1, -1, 2, 2),
       minSize: 0.00000001,

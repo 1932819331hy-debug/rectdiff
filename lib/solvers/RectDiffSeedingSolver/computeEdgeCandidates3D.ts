@@ -126,6 +126,16 @@ export function computeEdgeCandidates3D(params: {
       ...(hardPlacedByLayer[z] ?? []),
     ].map(toRect),
   )
+  // Ranking measures the original rectangle edges, before line-test rounding.
+  const hardRectIndexByLayer = hardRectsByLayer.map((rects) => {
+    if (rects.length === 0) return null
+    const index = new Flatbush(rects.length)
+    for (const rect of rects) {
+      index.add(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height)
+    }
+    index.finish()
+    return index
+  })
   const key = (p: { x: number; y: number; z: number }) =>
     `${p.z}|${p.x.toFixed(6)}|${p.y.toFixed(6)}`
 
@@ -153,16 +163,26 @@ export function computeEdgeCandidates3D(params: {
       return
     if (fullyOcc({ x, y })) return // new rule: only drop if truly impossible
 
+    const k = key({ x, y, z })
+    if (dedup.has(k)) return
+
     // Distance uses obstacles + hard nodes (soft nodes ignored for ranking)
     const hard = hardRectsByLayer[z] ?? []
     let d = distancePointToRectEdges({ x, y }, bounds)
-    for (const blocker of hard) {
-      d = Math.min(d, distancePointToRectEdges({ x, y }, blocker))
+    const hardRectIndex = hardRectIndexByLayer[z]
+    if (hardRectIndex) {
+      // A nearest box supplies an upper bound, not necessarily the nearest
+      // edge: several rectangles may contain the point with different gaps.
+      const nearestIndex = hardRectIndex.neighbors(x, y, 1)[0]!
+      d = Math.min(d, distancePointToRectEdges({ x, y }, hard[nearestIndex]!))
+      // Any edge closer than d belongs to a rectangle intersecting this square.
+      const nearbyIndices = hardRectIndex.search(x - d, y - d, x + d, y + d)
+      for (const index of nearbyIndices) {
+        d = Math.min(d, distancePointToRectEdges({ x, y }, hard[index]!))
+      }
     }
     const distance = quantize(d)
 
-    const k = key({ x, y, z })
-    if (dedup.has(k)) return
     dedup.add(k)
 
     // Approximate z-span strength at this z (ignoring soft nodes)
