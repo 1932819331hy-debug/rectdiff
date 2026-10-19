@@ -77,11 +77,11 @@ test("indexed edge query returns two blockers while preserving the exhaustive se
   ).toBe(false)
 
   const svg = getSvgFromGraphicsObject(
-    makeQueryWorkComparisonGraphics(
-      referenceSeeds,
-      indexedSeeds,
+    makeQueryWorkComparisonGraphics({
+      reference: referenceSeeds,
+      indexed: indexedSeeds,
       queriedBlockers,
-    ),
+    }),
     { backgroundColor: "white", svgWidth: 1600, svgHeight: 1000 },
   )
   await expect(svg).toMatchSvgSnapshot(import.meta.path)

@@ -40,11 +40,15 @@ export function makeQueryWorkSnapshotParams(): Parameters<
   }
 }
 
-export function makeQueryWorkComparisonGraphics(
-  reference: Candidate3D[],
-  indexed: Candidate3D[],
-  queriedBlockers: XYRect[],
-): GraphicsObject {
+export function makeQueryWorkComparisonGraphics({
+  reference,
+  indexed,
+  queriedBlockers,
+}: {
+  reference: Candidate3D[]
+  indexed: Candidate3D[]
+  queriedBlockers: XYRect[]
+}): GraphicsObject {
   function panel(candidates: Candidate3D[], useIndex: boolean): GraphicsObject {
     const seeds = candidates.filter(
       (candidate) =>

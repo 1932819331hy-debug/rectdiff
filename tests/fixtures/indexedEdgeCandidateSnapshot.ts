@@ -37,11 +37,15 @@ export function makeEdgeCandidateComparisonGraphics(
   reference: Candidate3D[],
   indexed: Candidate3D[],
 ): GraphicsObject {
-  function panel(
-    candidates: Candidate3D[],
-    title: string,
-    z: number,
-  ): GraphicsObject {
+  function panel({
+    candidates,
+    title,
+    z,
+  }: {
+    candidates: Candidate3D[]
+    title: string
+    z: number
+  }): GraphicsObject {
     const onLayer = candidates.filter((candidate) => candidate.z === z)
     const corner = onLayer.find(
       (candidate) => candidate.x === 0.15 && candidate.y === 0.15,
@@ -113,8 +117,8 @@ export function makeEdgeCandidateComparisonGraphics(
   return {
     ...createGraphicsGrid(
       [0, 1].map((z) => [
-        panel(reference, "Exhaustive reference", z),
-        panel(indexed, "Indexed queries", z),
+        panel({ candidates: reference, title: "Exhaustive reference", z }),
+        panel({ candidates: indexed, title: "Indexed queries", z }),
       ]),
       { cellWidth: 4, cellHeight: 5.6, gap: 0.4 },
     ),

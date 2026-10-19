@@ -230,12 +230,17 @@ export function computeEdgeCandidates3D(params: {
       }
       blockerIndex.finish()
     }
-    const queryBlockers = (
-      minX: number,
-      minY: number,
-      maxX: number,
-      maxY: number,
-    ): XYRect[] => {
+    const queryBlockers = ({
+      minX,
+      minY,
+      maxX,
+      maxY,
+    }: {
+      minX: number
+      minY: number
+      maxX: number
+      maxY: number
+    }): XYRect[] => {
       if (!blockerIndex) return []
       const indices = blockerIndex.search(minX, minY, maxX, maxY)
       indices.sort((a, b) => a - b)
@@ -257,7 +262,12 @@ export function computeEdgeCandidates3D(params: {
 
     // Top edge (y = bounds.y + δ)
     const topY = bounds.y + δ
-    const topCovering = queryBlockers(-Infinity, topY, Infinity, topY)
+    const topCovering = queryBlockers({
+      minX: -Infinity,
+      minY: topY,
+      maxX: Infinity,
+      maxY: topY,
+    })
       .filter((b) => b.y <= topY && b.y + b.height >= topY)
       .map((b) => ({
         start: Math.max(bounds.x, b.x),
@@ -284,7 +294,12 @@ export function computeEdgeCandidates3D(params: {
 
     // Bottom edge (y = bounds.y + bounds.height - δ)
     const bottomY = bounds.y + bounds.height - δ
-    const bottomCovering = queryBlockers(-Infinity, bottomY, Infinity, bottomY)
+    const bottomCovering = queryBlockers({
+      minX: -Infinity,
+      minY: bottomY,
+      maxX: Infinity,
+      maxY: bottomY,
+    })
       .filter((b) => b.y <= bottomY && b.y + b.height >= bottomY)
       .map((b) => ({
         start: Math.max(bounds.x, b.x),
@@ -309,7 +324,12 @@ export function computeEdgeCandidates3D(params: {
 
     // Left edge (x = bounds.x + δ)
     const leftX = bounds.x + δ
-    const leftCovering = queryBlockers(leftX, -Infinity, leftX, Infinity)
+    const leftCovering = queryBlockers({
+      minX: leftX,
+      minY: -Infinity,
+      maxX: leftX,
+      maxY: Infinity,
+    })
       .filter((b) => b.x <= leftX && b.x + b.width >= leftX)
       .map((b) => ({
         start: Math.max(bounds.y, b.y),
@@ -334,7 +354,12 @@ export function computeEdgeCandidates3D(params: {
 
     // Right edge (x = bounds.x + bounds.width - δ)
     const rightX = bounds.x + bounds.width - δ
-    const rightCovering = queryBlockers(rightX, -Infinity, rightX, Infinity)
+    const rightCovering = queryBlockers({
+      minX: rightX,
+      minY: -Infinity,
+      maxX: rightX,
+      maxY: Infinity,
+    })
       .filter((b) => b.x <= rightX && b.x + b.width >= rightX)
       .map((b) => ({
         start: Math.max(bounds.y, b.y),
@@ -362,12 +387,12 @@ export function computeEdgeCandidates3D(params: {
       // Left edge of blocker (x = b.x - δ)
       const obLeftX = b.x - δ
       if (obLeftX > bounds.x + EPS && obLeftX < bounds.x + bounds.width - EPS) {
-        const obLeftCovering = queryBlockers(
-          obLeftX,
-          -Infinity,
-          obLeftX,
-          Infinity,
-        )
+        const obLeftCovering = queryBlockers({
+          minX: obLeftX,
+          minY: -Infinity,
+          maxX: obLeftX,
+          maxY: Infinity,
+        })
           .filter(
             (bl) => bl !== b && bl.x <= obLeftX && bl.x + bl.width >= obLeftX,
           )
@@ -392,12 +417,12 @@ export function computeEdgeCandidates3D(params: {
         obRightX > bounds.x + EPS &&
         obRightX < bounds.x + bounds.width - EPS
       ) {
-        const obRightCovering = queryBlockers(
-          obRightX,
-          -Infinity,
-          obRightX,
-          Infinity,
-        )
+        const obRightCovering = queryBlockers({
+          minX: obRightX,
+          minY: -Infinity,
+          maxX: obRightX,
+          maxY: Infinity,
+        })
           .filter(
             (bl) => bl !== b && bl.x <= obRightX && bl.x + bl.width >= obRightX,
           )
@@ -419,7 +444,12 @@ export function computeEdgeCandidates3D(params: {
       // Top edge of blocker (y = b.y - δ)
       const obTopY = b.y - δ
       if (obTopY > bounds.y + EPS && obTopY < bounds.y + bounds.height - EPS) {
-        const obTopCovering = queryBlockers(-Infinity, obTopY, Infinity, obTopY)
+        const obTopCovering = queryBlockers({
+          minX: -Infinity,
+          minY: obTopY,
+          maxX: Infinity,
+          maxY: obTopY,
+        })
           .filter(
             (bl) => bl !== b && bl.y <= obTopY && bl.y + bl.height >= obTopY,
           )
@@ -444,12 +474,12 @@ export function computeEdgeCandidates3D(params: {
         obBottomY > bounds.y + EPS &&
         obBottomY < bounds.y + bounds.height - EPS
       ) {
-        const obBottomCovering = queryBlockers(
-          -Infinity,
-          obBottomY,
-          Infinity,
-          obBottomY,
-        )
+        const obBottomCovering = queryBlockers({
+          minX: -Infinity,
+          minY: obBottomY,
+          maxX: Infinity,
+          maxY: obBottomY,
+        })
           .filter(
             (bl) =>
               bl !== b && bl.y <= obBottomY && bl.y + bl.height >= obBottomY,
