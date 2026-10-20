@@ -431,6 +431,39 @@ test("indexed edge candidates exactly match exhaustive analysis", () => {
   }
 })
 
+test("raw ranking includes reversed rectangles beside a containing box", () => {
+  for (const rect of [
+    { x: 0.2, y: 0, width: -3, height: 1 },
+    { x: 0, y: 0.2, width: 1, height: -3 },
+    { x: 0.2, y: 0.2, width: -3, height: -3 },
+  ]) {
+    for (const destination of ["obstacles", "hard"] as const) {
+      const params = makeParams({
+        name: `reversed ${destination} ranking`,
+        bounds: { x: 0, y: 0, width: 10, height: 10 },
+        minSize: 1,
+        layerCount: 2,
+        layers: [
+          {
+            [destination]: [{ x: 0, y: 0, width: 1, height: 1 }, rect],
+          },
+          {},
+        ],
+      })
+      const result = computeEdgeCandidates3D(params)
+      expect(result).toEqual(computeEdgeCandidates3DReference(params))
+      const corner = result.find(
+        (candidate) =>
+          candidate.x === 0.15 && candidate.y === 0.15 && candidate.z === 0,
+      )!
+      expect(corner.distance).toBeCloseTo(
+        rect.width < 0 && rect.height < 0 ? 0.070711 : 0.05,
+        6,
+      )
+    }
+  }
+})
+
 test("aligned edge queries share one line search and preserve disjoint and reversed intervals", () => {
   const params = makeParams({
     name: "aligned sources with clipped and reversed projections",

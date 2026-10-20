@@ -178,7 +178,16 @@ export function computeEdgeCandidates3D(params: {
     if (rects.length === 0) return null
     const index = new Flatbush(rects.length)
     for (const rect of rects) {
-      index.add(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height)
+      const endX = rect.x + rect.width
+      const endY = rect.y + rect.height
+      // The index needs ordered bounds, including for reversed extents.
+      // Exact ranking still uses the original rectangle and distance helper.
+      index.add(
+        Math.min(rect.x, endX),
+        Math.min(rect.y, endY),
+        Math.max(rect.x, endX),
+        Math.max(rect.y, endY),
+      )
     }
     index.finish()
     return index
