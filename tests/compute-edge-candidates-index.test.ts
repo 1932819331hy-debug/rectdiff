@@ -1,4 +1,5 @@
-import { expect, test } from "bun:test"
+import { expect, spyOn, test } from "bun:test"
+import Flatbush from "flatbush"
 import RBush from "rbush"
 import type { XYRect } from "../lib/rectdiff-types"
 import { computeEdgeCandidates3D } from "../lib/solvers/RectDiffSeedingSolver/computeEdgeCandidates3D"
@@ -376,6 +377,32 @@ test("indexed edge candidates exactly match exhaustive analysis", () => {
       ],
     },
     {
+      name: "grouped queries preserve the first accepted float representation",
+      bounds: { x: -10, y: -10, width: 20, height: 20 },
+      minSize: 0.00000001,
+      layerCount: 3,
+      layers: [
+        {},
+        {
+          obstacles: [
+            {
+              x: -3.00000049,
+              y: 13,
+              width: 3.0000000001,
+              height: 0.00000049,
+            },
+            {
+              x: 0.0000000001,
+              y: -1.00000049,
+              width: 0,
+              height: 0.00000051,
+            },
+          ],
+        },
+        {},
+      ],
+    },
+    {
       name: "EPS inset dominates a subprecision minimum size",
       bounds: { x: -1, y: -1, width: 2, height: 2 },
       minSize: 0.00000001,
@@ -402,4 +429,52 @@ test("indexed edge candidates exactly match exhaustive analysis", () => {
       candidates: computeEdgeCandidates3DReference(params),
     })
   }
+})
+
+test("aligned edge queries share one line search and preserve disjoint and reversed intervals", () => {
+  const params = makeParams({
+    name: "aligned sources with clipped and reversed projections",
+    bounds: { x: 0, y: 0, width: 12, height: 10 },
+    minSize: 1,
+    layerCount: 2,
+    layers: [
+      {
+        obstacles: [
+          { x: 5, y: 2, width: 2, height: 2 },
+          { x: 5, y: 6, width: 2, height: 2 },
+          { x: 5, y: 2, width: 2, height: 2 },
+          { x: 4.5, y: 0, width: 1, height: 1 },
+          { x: 4.5, y: 9, width: 1, height: 1 },
+          { x: 4.5, y: 4, width: 1, height: 1 },
+          { x: 4.5, y: 5, width: 1, height: -1 },
+        ],
+      },
+      {},
+    ],
+  })
+  const reference = computeEdgeCandidates3DReference(params)
+  const originalSearch = Flatbush.prototype.search
+  let sharedLineSearches = 0
+  const searchSpy = spyOn(Flatbush.prototype, "search").mockImplementation(
+    function (
+      this: Flatbush,
+      ...args: Parameters<Flatbush["search"]>
+    ): number[] {
+      if (
+        args[0] === 4.85 &&
+        args[1] === -Infinity &&
+        args[2] === 4.85 &&
+        args[3] === Infinity
+      ) {
+        sharedLineSearches++
+      }
+      return originalSearch.apply(this, args)
+    },
+  )
+  try {
+    expect(computeEdgeCandidates3D(params)).toEqual(reference)
+  } finally {
+    searchSpy.mockRestore()
+  }
+  expect(sharedLineSearches).toBe(1)
 })
