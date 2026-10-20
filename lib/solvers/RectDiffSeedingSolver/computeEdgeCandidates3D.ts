@@ -24,12 +24,6 @@ type ProjectedBlocker = {
   sourceIndex: number
 }
 
-type EdgeSegment = {
-  order: number
-  coordinate: number
-  sourceIndex?: number
-}
-
 type EdgeBounds = {
   lineStart: number
   lineEnd: number
@@ -166,6 +160,8 @@ export function computeEdgeCandidates3D(params: {
   const out: Candidate3D[] = []
   // Use small inset from edges for placement
   const δ = Math.max(minSize * 0.15, EPS * 3)
+  const edgesPerAxis = 2
+  const edgesPerRectangle = 4
   let nextOrder = 0
   const acceptedSeeds = new Map<
     string,
@@ -258,23 +254,24 @@ export function computeEdgeCandidates3D(params: {
 
     // Group only query descriptions, not their hits: retained memory is linear
     // in the number of edges, even when every line crosses every blocker.
-    const verticalLines = new Map<number, EdgeSegment[]>()
-    const horizontalLines = new Map<number, EdgeSegment[]>()
+    const verticalLines = new Map<number, number[]>()
+    const horizontalLines = new Map<number, number[]>()
     const addLine = (params: {
       vertical: boolean
       coordinate: number
-      sourceIndex?: number
+      edgeOrdinal: number
     }) => {
       const lines = params.vertical ? verticalLines : horizontalLines
-      const segment = {
-        sourceIndex: params.sourceIndex,
-        coordinate: params.coordinate,
-        order: nextOrder++,
-      }
       const segments = lines.get(params.coordinate)
-      if (segments) segments.push(segment)
-      else lines.set(params.coordinate, [segment])
+      if (segments) segments.push(params.edgeOrdinal)
+      else lines.set(params.coordinate, [params.edgeOrdinal])
     }
+
+    // These ordinals follow the original walk: four corners, four board
+    // edges, then left/right/top/bottom for each blocker. Reserve each edge's
+    // slot even when it lies outside the board, so its source remains derivable.
+    const layerOrder = nextOrder
+    let nextEdgeOrdinal = 0
 
     const corners = [
       { x: bounds.x + δ, y: bounds.y + δ },
@@ -283,25 +280,35 @@ export function computeEdgeCandidates3D(params: {
       { x: bounds.x + bounds.width - δ, y: bounds.y + bounds.height - δ },
     ]
     for (const corner of corners) {
-      pushIfFree({ ...corner, z, order: nextOrder++, pointOrder: 0 })
+      pushIfFree({
+        ...corner,
+        z,
+        order: layerOrder + nextEdgeOrdinal++,
+        pointOrder: 0,
+      })
     }
 
+    const firstBoardEdgeOrdinal = nextEdgeOrdinal
     for (const coordinate of [bounds.y + δ, bounds.y + bounds.height - δ]) {
       addLine({
         vertical: false,
         coordinate,
+        edgeOrdinal: nextEdgeOrdinal++,
       })
     }
     for (const coordinate of [bounds.x + δ, bounds.x + bounds.width - δ]) {
       addLine({
         vertical: true,
         coordinate,
+        edgeOrdinal: nextEdgeOrdinal++,
       })
     }
 
+    const firstBlockerEdgeOrdinal = nextEdgeOrdinal
     for (let sourceIndex = 0; sourceIndex < blockers.length; sourceIndex++) {
       const blocker = blockers[sourceIndex]!
       for (const coordinate of [blocker.x - δ, blocker.x + blocker.width + δ]) {
+        const edgeOrdinal = nextEdgeOrdinal++
         if (
           !(
             coordinate > bounds.x + EPS &&
@@ -312,13 +319,14 @@ export function computeEdgeCandidates3D(params: {
         addLine({
           vertical: true,
           coordinate,
-          sourceIndex,
+          edgeOrdinal,
         })
       }
       for (const coordinate of [
         blocker.y - δ,
         blocker.y + blocker.height + δ,
       ]) {
+        const edgeOrdinal = nextEdgeOrdinal++
         if (
           !(
             coordinate > bounds.y + EPS &&
@@ -329,11 +337,12 @@ export function computeEdgeCandidates3D(params: {
         addLine({
           vertical: false,
           coordinate,
-          sourceIndex,
+          edgeOrdinal,
         })
       }
     }
 
+    nextOrder = layerOrder + nextEdgeOrdinal
     for (const vertical of [true, false]) {
       const lines = vertical ? verticalLines : horizontalLines
       for (const [coordinate, segments] of lines) {
@@ -361,9 +370,29 @@ export function computeEdgeCandidates3D(params: {
           if (end < start) hasReversedIntervals = true
         }
         coveringIntervals.sort((a, b) => a.start - b.start)
-        for (const segment of segments) {
-          const isBoardEdge = segment.sourceIndex === undefined
-          const source = isBoardEdge ? bounds : blockers[segment.sourceIndex!]!
+        for (const edgeOrdinal of segments) {
+          const isBoardEdge = edgeOrdinal < firstBlockerEdgeOrdinal
+          const blockerEdgeOffset = edgeOrdinal - firstBlockerEdgeOrdinal
+          const sourceIndex = isBoardEdge
+            ? undefined
+            : Math.floor(blockerEdgeOffset / edgesPerRectangle)
+          const source = isBoardEdge ? bounds : blockers[sourceIndex!]!
+          const leading = isBoardEdge
+            ? edgeOrdinal === firstBoardEdgeOrdinal ||
+              edgeOrdinal === firstBoardEdgeOrdinal + edgesPerAxis
+            : blockerEdgeOffset % edgesPerRectangle === 0 ||
+              blockerEdgeOffset % edgesPerRectangle === edgesPerAxis
+          const start = vertical ? source.x : source.y
+          const extent = vertical ? source.width : source.height
+          // Recompute the original expression instead of emitting the group's
+          // Map key: numerically equal keys can have different signed zeros.
+          const exactCoordinate = isBoardEdge
+            ? leading
+              ? start + δ
+              : start + extent - δ
+            : leading
+              ? start - δ
+              : start + extent + δ
           const clipStart = vertical ? source.y : source.x
           const clipEnd = vertical
             ? source.y + source.height
@@ -374,7 +403,7 @@ export function computeEdgeCandidates3D(params: {
               lineEnd: isBoardEdge ? clipEnd - δ : clipEnd,
               clipStart,
               clipEnd,
-              sourceIndex: segment.sourceIndex,
+              sourceIndex,
             },
             coveringIntervals,
             hasReversedIntervals,
@@ -385,9 +414,9 @@ export function computeEdgeCandidates3D(params: {
             const pushAt = (position: number) =>
               pushIfFree({
                 ...(vertical
-                  ? { x: segment.coordinate, y: position, z }
-                  : { x: position, y: segment.coordinate, z }),
-                order: segment.order,
+                  ? { x: exactCoordinate, y: position, z }
+                  : { x: position, y: exactCoordinate, z }),
+                order: layerOrder + edgeOrdinal,
                 pointOrder: pointOrder++,
               })
             const length = gap.end - gap.start
