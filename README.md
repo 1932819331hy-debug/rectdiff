@@ -118,7 +118,6 @@ for (const node of output.meshNodes) {
 #### Constructor Options
 
 - `simpleRouteJson` (required): The circuit board layout definition
-
   - `bounds`: Board boundaries (minX, maxX, minY, maxY)
   - `obstacles`: Array of rectangular obstacles on the board
   - `connections`: Connection requirements between points
@@ -126,7 +125,6 @@ for (const node of output.meshNodes) {
   - `minTraceWidth`: Minimum trace width for routing
 
 - `mode`: "grid" | "exact" (default: "grid")
-
   - Currently only "grid" mode is implemented
 
 - `gridOptions`: Fine-tune the grid-based expansion algorithm
